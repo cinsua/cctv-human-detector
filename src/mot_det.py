@@ -48,9 +48,25 @@ class MotionDetector:
                 d = max([w,h])
                 x1 = x - int(d/4)
                 y1 = y - int(d/4)
+                if x1<0:
+                    x1 = 0
+                if y1<0:
+                    y1 = 0
+                y2 = int(y1+1.5*d)
+                x2 = int(x1+1.5*d)
+                image_shape = frame.shape[:2]
+                h, w = image_shape
+                if y2>h:
+                    y2 = h
+                if x2 > w:
+                    x2=w
                 #frame= cv2.rectangle(frame, (x1, y1), (int(x1+1.5*d), int(y1+1.5*d)), (0, 0, 200),1)
-                self.bboxes.append([x1, y1, int(x1+1.5*d), int(y1+1.5*d)])
+                self.bboxes.append([x1, y1, x2, y2])
 
             self._reset()
             self.previus_frame = gray
+            if (len(self.bboxes)>0):
+                return True
+        return False
+
     
