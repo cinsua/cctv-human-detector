@@ -53,10 +53,9 @@ while True:
 
         # This could be redone with deque max, and threshold %
         # for example 7 out of 10 positives
-        if stack_events.count(True)==POSITIVE_DETECTIONS_REQUIRED:
-            utils.console_log('ALARM!!')
-            utils.beep()
-            stack_events.clear()
+        #if stack_events.count(True)==POSITIVE_DETECTIONS_REQUIRED:
+            
+            #stack_events.clear()
 
         #print(res_ia)
     # reset of bboxes
@@ -67,8 +66,16 @@ while True:
     utils.put_mot_det_rect_in_frame(frame,mot_det.bboxes)
     utils.put_ia_det_rect_in_frame(frame,ia_det.bboxes)
     utils.put_fps_in_frame(frame,fps_counter.get_fps_label())
-    
-    cv2.imshow('Streaming', frame)
+
+    # save frame with bbox
+    # TO DO 
+    if stack_events.count(True)==POSITIVE_DETECTIONS_REQUIRED:
+        utils.console_log('ALARM!!')
+        utils.beep()
+        utils.save_frame_to_img(frame)
+        stack_events.clear()
+
+    cv2.imshow('CCTV', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 

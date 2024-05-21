@@ -40,3 +40,12 @@ def play_audio():
 def beep():
     _thread.start_new_thread( play_audio, () )
     #playsound('./beep.mp3')
+
+def save_frame_to_img(frame):
+    img = cv2.resize(frame, dsize=[640,360])
+    now = datetime.datetime.now()
+    #dt_string = now.strftime("%m-%d")
+    dt_string = now.strftime("%m-%d %H.%M.%S")
+    #print(dt_string)
+    #'./images/'
+    cv2.imwrite('images/'+dt_string+'.jpg', img)

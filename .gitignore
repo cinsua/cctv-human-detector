@@ -28,6 +28,9 @@ MANIFEST
 
 # Env
 openvino_env/
+openvino_cache/
+images/
+
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
