@@ -18,15 +18,15 @@ def put_fps_in_frame(frame, text, color=(255, 255, 255)):
 
 def put_mot_det_rect_in_frame(frame, bbox):
     for b in bbox:
-        x, y, x_max, y_max = b
-        frame = cv2.rectangle(frame, (x, y), (x_max,y_max), (0, 200, 200),1)
+        x, y, w, h = b
+        frame = cv2.rectangle(frame, (x, y), (x+w,y+h), (0, 0, 200),1)
     
     return frame
 
-def put_ia_det_rect_in_frame(frame, bbox):
-    for b in bbox:
-        img, scores, x, y, x_max, y_max = b
-        frame = cv2.rectangle(frame, (x, y), (x_max,y_max), (200, 0, 0),3)
+def put_ia_det_rect_in_frame(frame, bboxes, scores):
+    for index, b in enumerate(bboxes):
+        x, y, x_max, y_max = b
+        frame = cv2.rectangle(frame, (x, y), (x_max,y_max), (200, 0, 0),1)
     
     return frame
 
