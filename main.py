@@ -14,10 +14,11 @@ from src.mot_det import MotionDetector
 from src.fps import Fps
 from src import utils
 from src.ia_det import IaDetector
+from src.intersection import Bbox
 import collections
 ### PARAMETERS
 
-N_FRAMES_MOV_DET = 10
+N_FRAMES_MOV_DET = 6
 TRESHOLD_MOV_DET = 40
 
 N_FRAMES_UPDATE_FPS = 30
@@ -26,11 +27,15 @@ POSITIVE_DETECTIONS_REQUIRED = 3
 
 CAMERA_DIR = 0 # use RTSP link, or 0 for webcam
 
+COVERAGE_TRESHOLD = 0.5
+IOU_MAX = 0.4
+
 ###
 
 # Video Capture
 video_stream = cv2.VideoCapture(CAMERA_DIR)
 ret, first_frame = video_stream.read()
+first_frame = cv2.resize(first_frame, dsize=[960,540])
 
 # Init motion detector
 mot_det = MotionDetector(first_frame,N_FRAMES_MOV_DET, TRESHOLD_MOV_DET)
@@ -43,22 +48,55 @@ ia_det = IaDetector()
 
 #INIT DEQUE POSITIVE DETECTIONS REQUIRED to trigger alarms:
 stack_events = collections.deque(maxlen=POSITIVE_DETECTIONS_REQUIRED)
+alarm_boxes = []
 
 while True:
     ret, frame = video_stream.read()
+    frame = cv2.resize(frame, dsize=[960,540])
     fps_counter.start_fps()
     #motion detection
     movement_detected = mot_det.process_frame(frame)
     if movement_detected:
         ia_detected = ia_det.process_frame(frame)
         # process intersections
+        if ia_detected:
+            mot_det_bboxes = []
+            ia_det_bboxes = []
+            for b in mot_det.bboxes:
+                x, y, w, h = b
+                bbox = Bbox(x,y,x+w,y+h)
+                mot_det_bboxes.append(bbox)
+            for b in ia_det.bboxes:
+                x, y, x_max, y_max = b
+                bbox = Bbox(x,y,x_max,y_max)
+                ia_det_bboxes.append(bbox)
+            alarm_boxes = []
+            for box in ia_det_bboxes:
+                for mov_box in mot_det_bboxes:
+                    
+                    coverage, alarm_box = box.coverage(mov_box)
+                    #print(coverage)
+                    if coverage>COVERAGE_TRESHOLD:
+                        iou = box.iou(mov_box)
+                        if iou > IOU_MAX:
+                            # TODO write better code, this nesting is insane
+                            alarm_boxes.append(alarm_box)
+                            #print('ALARM', alarm_box)
+
 
     # reset of bboxes
     if mot_det.bboxes == []:
         ia_det.bboxes = []
+        alarm_boxes = []
     fps_counter.end_fps()
+
+    frame=utils.put_mot_det_shadow_in_frame(frame,mot_det.bboxes)
+    frame=utils.put_ia_det_shadow_in_frame(frame,ia_det.bboxes)
+    frame=utils.put_alarm_det_shadow_in_frame(frame,ia_det.bboxes)
+
     utils.put_mot_det_rect_in_frame(frame,mot_det.bboxes)
     utils.put_ia_det_rect_in_frame(frame,ia_det.bboxes, ia_det.scores)
+    utils.put_alarm_det_rect_in_frame(frame,alarm_boxes)
     
 
     # save frame with bbox

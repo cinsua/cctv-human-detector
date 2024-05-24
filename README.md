@@ -12,8 +12,11 @@ Compares consecutive frames to identify movement regions.
 
 ### Person Detection with AI Analysis (if motion detected):
 
-Crops the detected motion region from the current frame.
-Utilizes a pre-trained OpenVINO model specifically designed for person detection to focus on potential intruders.
+Analize the frame with an Intel pre-trained model (FP16 instance-segmentation-person-0007).
+
+### Process both sources:
+
+Compares the bounding boxes from Motion Detection and IA Predictions to get an intersection that meets the requisites to trigger an action
 
 This repository provides a foundation for building intelligent surveillance systems that can effectively detect people, reduce false positives, and run efficiently on resource-constrained devices, making it suitable for edge deployments.
 

@@ -48,7 +48,6 @@ class MotionDetector:
             # Expand the movement detected to get a better zone
             delta_thresh_dilated = cv2.dilate(delta_thresh, self.kernel_rect, iterations=1)
             delta_thresh_dilated = cv2.dilate(delta_thresh_dilated, self.kernel_ellipse, iterations=1)
-
             # get countours, filter the small and isolated zones that erode couldnt remove
             contours, hierarchy = cv2.findContours(delta_thresh_dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             large_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > self.min_contour_area]
