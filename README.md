@@ -19,7 +19,8 @@ Analize the frame with an Intel pre-trained model (FP16 instance-segmentation-pe
 Compares the bounding boxes from Motion Detection and IA Predictions to get an intersection that meets the requisites to trigger an action
 
 Example:
-<img src='./readme_img/CCTV.PNG' width=60%>
+
+<img src='./readme_img/CCTV.PNG' width=100%>
 
 This repository provides a foundation for building intelligent surveillance systems that can effectively detect people, reduce false positives, and run efficiently on resource-constrained devices, making it suitable for edge deployments.
 
