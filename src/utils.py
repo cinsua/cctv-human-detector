@@ -41,7 +41,7 @@ def put_alarm_det_rect_in_frame(frame, bboxes):
     for index, b in enumerate(bboxes):
         x, y, x_max, y_max, n_triggers = b
         frame = cv2.rectangle(frame, (x, y), (x_max,y_max),text_color_bg,1)
-        text_size, _ = cv2.getTextSize('Alarm Confirmed {n_triggers}t', font, font_scale+0.1, font_thickness+1)
+        text_size, _ = cv2.getTextSize(f'Alarm Confirmed {n_triggers}t', font, font_scale+0.1, font_thickness+1)
         text_w, text_h = text_size
         cv2.rectangle(frame, (x,y_max - text_h - 4), (x + text_w + 4, y_max), text_color_bg, -1)
         cv2.putText(frame, f'Alarm Confirmed {n_triggers}t', (x+2, y_max-2), font, font_scale+0.1, text_color, font_thickness, cv2.LINE_AA)
@@ -92,6 +92,7 @@ def beep():
     _thread.start_new_thread( play_audio, () )
     #playsound('./beep.mp3')
 
+# TODO create folder if not exist
 def save_frame_to_img(frame):
     img = cv2.resize(frame, dsize=[640,360])
     now = datetime.datetime.now()

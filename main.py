@@ -26,16 +26,48 @@ N_FRAMES_UPDATE_FPS = 30
 POSITIVE_DETECTIONS_REQUIRED = 3
 
 CAMERA_DIR = 0 # use RTSP link, or 0 for webcam
+#CAMERA_DIR = 'vid/ex2.mp4'
 
 COVERAGE_TRESHOLD = 0.5
 IOU_MAX = 0.4
 
 ###
+'''
+STATE of this project:
+- ALL can change
+- Right now i am testing the viability in real world scenarios.
+- Why? because traditional alarms (especially PIR sensors) have problems with cats, and i have 5, and big windows. So i need movement detection and get rid of cat false alarm.
+- The goal here is have one old pc as server, an arduino for sirens/remote controls/(and sms messages when internet is not available), 4 or more cameras conected to LAN. And have the funtionality of camera recording and Home Alarm in one system
+'''
+
+'''
+TODO
+- all boxes should be instances of Bbox. Improve Bbox capabilities
+- refactor the nasty nesting code with classes
+- include @click params or similar
+- add descriptions to all params
+- improve detection. maybe with distance center-to-center instead of overlaping/coverage, explore other options
+- add line tracking to the detection
+- add saving video capabilities
+- add AlertOutput class.. all the actions reports should be handled there. like trigger alarm, tampering, background compromise, cammera disconection, etc
+- update readme with examples vid, gifs, and better explanation of what i do and why
+- option to load params from a cfg file
+- add states/modes. ex: 
+    ALARM mode: movement + AI to fire alarm, tampering(more than 50% of view movement detected), background profund change (like blocking the sight of the camera).
+    WATCH mode: deactivate AI confirmation. start saving clips of the prolonged movements detected
+    etc
+Low priority:
+- get another ai model. the one i am using here is relatively heavy, and i am not even using the segmentation part
+- provide a server file example, or ideas for the real use of this
+
+'''
+
+
 
 # Video Capture
 video_stream = cv2.VideoCapture(CAMERA_DIR)
 ret, first_frame = video_stream.read()
-first_frame = cv2.resize(first_frame, dsize=[960,540])
+#first_frame = cv2.resize(first_frame, dsize=[960,540])
 
 # Init motion detector
 mot_det = MotionDetector(first_frame,N_FRAMES_MOV_DET, TRESHOLD_MOV_DET)
@@ -47,14 +79,16 @@ fps_counter = Fps(N_FRAMES_UPDATE_FPS)
 ia_det = IaDetector()
 
 #INIT DEQUE POSITIVE DETECTIONS REQUIRED to trigger alarms:
-stack_events = collections.deque(maxlen=5)
+stack_events = collections.deque(maxlen=POSITIVE_DETECTIONS_REQUIRED)
 #alarm_boxes = []
 frame_alarms = []
 alarm_boxes_confirmed = []
 
+TEMPORARY_TRIGGER = False
+
 while True:
     ret, frame = video_stream.read()
-    frame = cv2.resize(frame, dsize=[960,540])
+    #frame = cv2.resize(frame, dsize=[960,540])
     fps_counter.start_fps()
     #motion detection
     movement_detected = mot_det.process_frame(frame)
@@ -83,6 +117,7 @@ while True:
                         iou = box.iou(mov_box)
                         if iou > IOU_MAX:
                             # TODO write better code, this nesting is insane
+                            
                             frame_alarms.append(alarm_box)
                             #print('ALARM', alarm_box)
             if len(frame_alarms)>0:
@@ -97,18 +132,35 @@ while True:
                     x1, y1, x2, y2 = alarm_box
                     bbox = Bbox(x,y,x_max,y_max)
                     trigger_counter = 1
+                    previous_box = bbox
                     for index,prev_frame_alarms in enumerate(stack_events):
+                        accepted_box = None
+                        accepted_coverage=0
                         if index == 0:
                             continue
+                        if index>trigger_counter:
+                            break
+                        
                         for ab in prev_frame_alarms:
                             x, y, x_max, y_max = ab
                             abbox = Bbox(x,y,x_max,y_max)
-                            coverage, _ = bbox.coverage(abbox)
-                            if coverage>0 and trigger_counter == index:
-                                trigger_counter += 1
-                    if trigger_counter-1>=POSITIVE_DETECTIONS_REQUIRED:
+                            coverage, _ = previous_box.coverage(abbox)
+                            # TODO trace movement from feets
+                            if coverage>0 and trigger_counter >= index:
+                                if accepted_coverage<coverage:
+                                    # this is JS level of nesting madness
+                                    # when i get it working im promise that i will refactor this
+                                    accepted_coverage = coverage
+                                    accepted_box = abbox
+                                if trigger_counter == index:
+                                    trigger_counter += 1
+                        if accepted_coverage>0:
+                            previous_box = accepted_box
+
+                    if trigger_counter>=POSITIVE_DETECTIONS_REQUIRED:
                         #print('ALARM', i, trigger_counter)
                         alarm_boxes_confirmed.append([x1, y1, x2, y2,trigger_counter])
+                        TEMPORARY_TRIGGER = True
 
 
 
@@ -129,16 +181,15 @@ while True:
     utils.put_ia_det_rect_in_frame(frame,ia_det.bboxes, ia_det.scores)
     utils.put_alarm_det_rect_in_frame(frame,alarm_boxes_confirmed)
     
-
-    # save frame with bbox
-    # TO DO 
-    #if stack_events.count(True)==POSITIVE_DETECTIONS_REQUIRED:
-    #    utils.console_log('ALARM!!')
-    #    utils.beep()
-    #    utils.save_frame_to_img(frame)
-    #    #stack_events.clear()
-    
-
+    # Temporary save frames for testing.
+    if TEMPORARY_TRIGGER:
+        TEMPORARY_TRIGGER = False
+        utils.console_log('ALARM!!')
+        utils.beep()
+        utils.save_frame_to_img(frame)
+        # TO AVOID SUCESIVE TRIGGERS IN LARGE MOTIONS. for TEST ONLY
+        # DO NOT CLEAR THE STACK HERE. REMOVE!!! IT CAUSES LOST TRACK ON TARGETS
+        stack_events.clear()
 
 
         

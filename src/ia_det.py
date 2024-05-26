@@ -4,7 +4,7 @@ from openvino.runtime import Core
 import numpy as np
 
 class IaDetector:
-    def __init__(self,confidence_thr=0.5) -> None:
+    def __init__(self,confidence_thr=0.8) -> None:
         self.confidence_thr=confidence_thr
         core = Core()
         core.set_property({'CACHE_DIR': './openvino_cache'})
