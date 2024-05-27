@@ -15,8 +15,8 @@ def put_mot_det_rect_in_frame(frame, bbox):
     # text in bbox left
     text_color_bg = (0,200,0)
     for b in bbox:
-        x, y, w, h = b
-        frame = cv2.rectangle(frame, (x, y), (x+w,y+h), text_color_bg,1)
+        x, y, x_max, y_max, = b.get_xyxy()
+        frame = cv2.rectangle(frame, (x, y), (x_max,y_max), text_color_bg,1)
         text_size, _ = cv2.getTextSize('Movement', font, font_scale, font_thickness)
         text_w, text_h = text_size
         cv2.rectangle(frame, (x,y), (x + text_w + 4, y + text_h + 4), text_color_bg, -1)
@@ -27,7 +27,7 @@ def put_mot_det_rect_in_frame(frame, bbox):
 def put_ia_det_rect_in_frame(frame, bboxes, scores):
     text_color_bg = (200,0,0)
     for index, b in enumerate(bboxes):
-        x, y, x_max, y_max = b
+        x, y, x_max, y_max = b.get_xyxy()
         frame = cv2.rectangle(frame, (x, y), (x_max,y_max),text_color_bg,1)
         text_size, _ = cv2.getTextSize(scores[index], font, font_scale, font_thickness)
         text_w, text_h = text_size
@@ -51,7 +51,7 @@ def put_alarm_det_rect_in_frame(frame, bboxes):
 def put_alarm_det_shadow_in_frame(frame, bboxes):
     shapes = np.zeros_like(frame, np.uint8)
     for index, b in enumerate(bboxes):
-        x, y, x_max, y_max = b
+        x, y, x_max, y_max = b.get_xyxy()
         cv2.rectangle(shapes, (x, y), (x_max,y_max), (0, 0, 200),cv2.FILLED)
     out = frame.copy()
     alpha = 0.5
@@ -62,8 +62,8 @@ def put_alarm_det_shadow_in_frame(frame, bboxes):
 def put_mot_det_shadow_in_frame(frame, bbox):
     shapes = np.zeros_like(frame, np.uint8)
     for b in bbox:
-        x, y, w, h = b
-        cv2.rectangle(shapes, (x, y), (x+w,y+h), (0, 200, 0), cv2.FILLED)
+        x, y, x_max, y_max= b.get_xyxy()
+        cv2.rectangle(shapes, (x, y), (x_max,y_max), (0, 200, 0), cv2.FILLED)
     out = frame.copy()
     alpha = 0.7
     mask = shapes.astype(bool)
@@ -73,13 +73,26 @@ def put_mot_det_shadow_in_frame(frame, bbox):
 def put_ia_det_shadow_in_frame(frame, bboxes):
     shapes = np.zeros_like(frame, np.uint8)
     for index, b in enumerate(bboxes):
-        x, y, x_max, y_max = b
+        x, y, x_max, y_max = b.get_xyxy()
         cv2.rectangle(shapes, (x, y), (x_max,y_max), (200, 0, 0),cv2.FILLED)
     out = frame.copy()
     alpha = 0.7
     mask = shapes.astype(bool)
     out[mask] = cv2.addWeighted(frame, alpha, shapes, 1 - alpha, 0)[mask]
     return out
+
+def put_trackpoinst_in_frame(frame, trackpoints):
+    #cv2.line(image, start_point, end_point, color, thickness) 
+    for det in trackpoints:
+        previous_x, previous_y = det[0]
+        for i,tp in enumerate(det):
+            if i == 0:
+                continue
+            x,y = tp
+            cv2.line(frame, (previous_x,previous_y),(x,y), (255,0,255), 3)
+            previous_x =x
+            previous_y = y
+    return frame
 
 def console_log(text):
     now = datetime.datetime.now()

@@ -14,11 +14,14 @@ from src.mot_det import MotionDetector
 from src.fps import Fps
 from src import utils
 from src.ia_det import IaDetector
-from src.intersection import Bbox
+from src.bbox import Bbox
 import collections
+from src.path import PathHandler
+from src.detection import Detection
+from src.video_capture import VideoCapture
 ### PARAMETERS
 
-N_FRAMES_MOV_DET = 6
+N_FRAMES_MOV_DET = 10
 TRESHOLD_MOV_DET = 40
 
 N_FRAMES_UPDATE_FPS = 30
@@ -26,7 +29,7 @@ N_FRAMES_UPDATE_FPS = 30
 POSITIVE_DETECTIONS_REQUIRED = 3
 
 CAMERA_DIR = 0 # use RTSP link, or 0 for webcam
-#CAMERA_DIR = 'vid/ex2.mp4'
+#CAMERA_DIR = 'vid/ex1.mp4'
 
 COVERAGE_TRESHOLD = 0.5
 IOU_MAX = 0.4
@@ -61,14 +64,26 @@ Low priority:
 - provide a server file example, or ideas for the real use of this
 
 '''
-
-
-
 # Video Capture
 video_stream = cv2.VideoCapture(CAMERA_DIR)
-ret, first_frame = video_stream.read()
-#first_frame = cv2.resize(first_frame, dsize=[960,540])
+def get_frame():
+    ret, frame = video_stream.read()
+    frame = cv2.resize(frame, dsize=[960,540])
+    return ret,frame
 
+
+
+
+ret, first_frame = get_frame()
+
+#width = int(video_stream.get(cv2.CAP_PROP_FRAME_WIDTH))
+#height = int(video_stream.get(cv2.CAP_PROP_FRAME_HEIGHT))
+fps = float(video_stream.get(cv2.CAP_PROP_FPS))
+#print(width,height,fps)
+#
+#video_capture = VideoCapture(960,540,fps)
+video_capture = VideoCapture(640,360,fps)
+#video_capture = VideoCapture(352,288,fps)
 # Init motion detector
 mot_det = MotionDetector(first_frame,N_FRAMES_MOV_DET, TRESHOLD_MOV_DET)
 
@@ -79,121 +94,85 @@ fps_counter = Fps(N_FRAMES_UPDATE_FPS)
 ia_det = IaDetector()
 
 #INIT DEQUE POSITIVE DETECTIONS REQUIRED to trigger alarms:
-stack_events = collections.deque(maxlen=POSITIVE_DETECTIONS_REQUIRED)
+path_handler = PathHandler(POSITIVE_DETECTIONS_REQUIRED)
+
+frame_buffer = collections.deque(maxlen=int(fps))
 #alarm_boxes = []
-frame_alarms = []
+shadows_confirmed_boxes = []
 alarm_boxes_confirmed = []
 
-TEMPORARY_TRIGGER = False
-
 while True:
-    ret, frame = video_stream.read()
+    ret, frame = get_frame()
     #frame = cv2.resize(frame, dsize=[960,540])
     fps_counter.start_fps()
     #motion detection
     movement_detected = mot_det.process_frame(frame)
+    
+    ia_detected = False
+    
     if movement_detected:
         ia_detected = ia_det.process_frame(frame)
-        # process intersections
+        shadows_confirmed_boxes = [] # should be here?
+    
+    # process intersections
+        frame_detections = []
         if ia_detected:
-            mot_det_bboxes = []
-            ia_det_bboxes = []
-            for b in mot_det.bboxes:
-                x, y, w, h = b
-                bbox = Bbox(x,y,x+w,y+h)
-                mot_det_bboxes.append(bbox)
-            for b in ia_det.bboxes:
-                x, y, x_max, y_max = b
-                bbox = Bbox(x,y,x_max,y_max)
-                ia_det_bboxes.append(bbox)
-            #alarm_boxes = []
-            frame_alarms = []
-            for box in ia_det_bboxes:
-                for mov_box in mot_det_bboxes:
-                    
-                    coverage, alarm_box = box.coverage(mov_box)
-                    #print(coverage)
-                    if coverage>COVERAGE_TRESHOLD:
-                        iou = box.iou(mov_box)
-                        if iou > IOU_MAX:
-                            # TODO write better code, this nesting is insane
-                            
-                            frame_alarms.append(alarm_box)
-                            #print('ALARM', alarm_box)
-            if len(frame_alarms)>0:
-                stack_events.appendleft(frame_alarms)
+            
+            for ai_box in ia_det.bboxes:
+                for mov_box in mot_det.bboxes:
+                    coverage, confirmed_box = ai_box.coverage(mov_box)
+                    if coverage<COVERAGE_TRESHOLD:
+                        continue
+                    iou = ai_box.iou(mov_box)
+                    if iou < IOU_MAX:
+                        continue
+                    shadows_confirmed_boxes.append(confirmed_box)                  
+                    frame_detections.append(Detection(ai_box,mov_box,confirmed_box))
 
-            # this is horrible code, but works.
-            if len(stack_events)>=POSITIVE_DETECTIONS_REQUIRED:
-                alarm_boxes_confirmed = []
-                #index = len(stack_events) -1
-                for i,alarm_box in enumerate(stack_events[0]):
-                    #print('----------starting alarm',i)
-                    x1, y1, x2, y2 = alarm_box
-                    bbox = Bbox(x,y,x_max,y_max)
-                    trigger_counter = 1
-                    previous_box = bbox
-                    for index,prev_frame_alarms in enumerate(stack_events):
-                        accepted_box = None
-                        accepted_coverage=0
-                        if index == 0:
-                            continue
-                        if index>trigger_counter:
-                            break
-                        
-                        for ab in prev_frame_alarms:
-                            x, y, x_max, y_max = ab
-                            abbox = Bbox(x,y,x_max,y_max)
-                            coverage, _ = previous_box.coverage(abbox)
-                            # TODO trace movement from feets
-                            if coverage>0 and trigger_counter >= index:
-                                if accepted_coverage<coverage:
-                                    # this is JS level of nesting madness
-                                    # when i get it working im promise that i will refactor this
-                                    accepted_coverage = coverage
-                                    accepted_box = abbox
-                                if trigger_counter == index:
-                                    trigger_counter += 1
-                        if accepted_coverage>0:
-                            previous_box = accepted_box
-
-                    if trigger_counter>=POSITIVE_DETECTIONS_REQUIRED:
-                        #print('ALARM', i, trigger_counter)
-                        alarm_boxes_confirmed.append([x1, y1, x2, y2,trigger_counter])
-                        TEMPORARY_TRIGGER = True
-
-
+        path_handler.process_paths(frame_detections)
 
     # reset of bboxes
     if mot_det.bboxes == []:
         ia_det.bboxes = []
+        shadows_confirmed_boxes = []
         alarm_boxes = []
         frame_alarms = []
-        stack_events.clear()
+        #stack_events.clear()
         alarm_boxes_confirmed = []
     fps_counter.end_fps()
 
     frame=utils.put_mot_det_shadow_in_frame(frame,mot_det.bboxes)
     frame=utils.put_ia_det_shadow_in_frame(frame,ia_det.bboxes)
-    frame=utils.put_alarm_det_shadow_in_frame(frame,frame_alarms)
+    frame=utils.put_alarm_det_shadow_in_frame(frame,shadows_confirmed_boxes)
 
     utils.put_mot_det_rect_in_frame(frame,mot_det.bboxes)
     utils.put_ia_det_rect_in_frame(frame,ia_det.bboxes, ia_det.scores)
-    utils.put_alarm_det_rect_in_frame(frame,alarm_boxes_confirmed)
+
+    alarm_boxes, trackpoints = path_handler.get_positives()
+    
+    
+    utils.put_alarm_det_rect_in_frame(frame,alarm_boxes)
+    utils.put_trackpoinst_in_frame(frame, trackpoints)
     
     # Temporary save frames for testing.
-    if TEMPORARY_TRIGGER:
-        TEMPORARY_TRIGGER = False
-        utils.console_log('ALARM!!')
-        utils.beep()
-        utils.save_frame_to_img(frame)
+    #if TEMPORARY_TRIGGER:
+    #    TEMPORARY_TRIGGER = False
+    #    utils.console_log('ALARM!!')
+    #    utils.beep()
+    #    utils.save_frame_to_img(frame)
         # TO AVOID SUCESIVE TRIGGERS IN LARGE MOTIONS. for TEST ONLY
         # DO NOT CLEAR THE STACK HERE. REMOVE!!! IT CAUSES LOST TRACK ON TARGETS
-        stack_events.clear()
+        #stack_events.clear()
 
+    if len(alarm_boxes)>0:
 
-        
+        video_capture.start_recording()
     
+    frame_buffer.append(frame)
+
+    video_capture.process_frame(frame_buffer)
+    
+    # refactor this
     utils.put_fps_in_frame(frame,fps_counter.get_fps_label())
 
     cv2.imshow('CCTV', frame)

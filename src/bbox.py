@@ -29,7 +29,7 @@ class Bbox:
 
         intersection = max(0, x1 - x2) * max(0, y1 - y2)
 
-        return intersection, [min(x1,x2),min(y1,y2),max(x1,x2),max(y1,y2)]
+        return intersection, Bbox(x1,y1,x2,y2)#[min(x1,x2),min(y1,y2),max(x1,x2),max(y1,y2)]
 
     def iou(self, bbox) -> float:
         intersection, box = self.intersect(bbox)
@@ -42,3 +42,9 @@ class Bbox:
         intersection, box = self.intersect(bbox)
         cov =  intersection/self.area
         return cov, box
+    
+    def get_xyxy(self):
+        return [self.x_min,self.y_min,self.x_max,self.y_max]
+    
+    def get_trackpoint(self):
+        return [int((self.x_min + self.x_max)/2),self.y_max]

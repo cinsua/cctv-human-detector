@@ -30,6 +30,7 @@ MANIFEST
 openvino_env/
 openvino_cache/
 images/
+videos/
 
 
 # PyInstaller

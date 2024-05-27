@@ -1,4 +1,5 @@
 import cv2
+from src.bbox import Bbox
 
 class MotionDetector:
     def __init__(self,frame, n_frames = 10, treshold = 25) -> None:
@@ -61,7 +62,7 @@ class MotionDetector:
                 y = y + self.compensation
                 w = w - self.compensation*2
                 h = h - self.compensation*2
-                bboxes.append([x,y,w,h])
+                bboxes.append(Bbox(x,y,x+w,y+h))
 
             self.bboxes = bboxes
             self._reset()
