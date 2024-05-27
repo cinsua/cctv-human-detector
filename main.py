@@ -11,6 +11,7 @@ import numpy as np
 import cv2
 from itertools import product
 from src.mot_det import MotionDetector
+from src.mot_det_v2 import MotionDetectorV2
 from src.fps import Fps
 from src import utils
 from src.ia_det import IaDetector
@@ -21,15 +22,16 @@ from src.detection import Detection
 from src.video_capture import VideoCapture
 ### PARAMETERS
 
-N_FRAMES_MOV_DET = 10
+#N_FRAMES_MOV_DET = 10
+N_FRAMES_MOV_DET = 5
 TRESHOLD_MOV_DET = 40
 
 N_FRAMES_UPDATE_FPS = 30
 
 POSITIVE_DETECTIONS_REQUIRED = 3
 
-CAMERA_DIR = 0 # use RTSP link, or 0 for webcam
-#CAMERA_DIR = 'vid/ex1.mp4'
+#CAMERA_DIR = 0 # use RTSP link, or 0 for webcam
+CAMERA_DIR = 'videos/ex7.mp4'
 
 COVERAGE_TRESHOLD = 0.5
 IOU_MAX = 0.4
@@ -76,16 +78,20 @@ def get_frame():
 
 ret, first_frame = get_frame()
 
-#width = int(video_stream.get(cv2.CAP_PROP_FRAME_WIDTH))
-#height = int(video_stream.get(cv2.CAP_PROP_FRAME_HEIGHT))
+width = int(video_stream.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(video_stream.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps = float(video_stream.get(cv2.CAP_PROP_FPS))
-#print(width,height,fps)
+print(width,height,fps)
+
+frametime = int(500 / fps)
+
 #
 #video_capture = VideoCapture(960,540,fps)
 video_capture = VideoCapture(640,360,fps)
 #video_capture = VideoCapture(352,288,fps)
 # Init motion detector
-mot_det = MotionDetector(first_frame,N_FRAMES_MOV_DET, TRESHOLD_MOV_DET)
+#mot_det = MotionDetector(first_frame,N_FRAMES_MOV_DET, TRESHOLD_MOV_DET)
+mot_det = MotionDetectorV2(first_frame,N_FRAMES_MOV_DET, TRESHOLD_MOV_DET)
 
 # Init fps counter
 fps_counter = Fps(N_FRAMES_UPDATE_FPS)
@@ -110,6 +116,8 @@ while True:
     
     ia_detected = False
     
+    # Force to improve mot det
+    movement_detected = False
     if movement_detected:
         ia_detected = ia_det.process_frame(frame)
         shadows_confirmed_boxes = [] # should be here?
@@ -176,7 +184,7 @@ while True:
     utils.put_fps_in_frame(frame,fps_counter.get_fps_label())
 
     cv2.imshow('CCTV', frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    if cv2.waitKey(frametime) & 0xFF == ord('q'):
         break
 
 video_stream.release()
