@@ -1,6 +1,7 @@
 import cv2
 from src.bbox import Bbox
 import numpy as np
+import time
 
 class MotionDetectorV2:
     def __init__(self,frame, n_frames = 10, treshold = 25) -> None:
@@ -34,17 +35,19 @@ class MotionDetectorV2:
         return f
     
     def process_frame(self,frame):
+        #t0 = time.perf_counter()
         self.frame_counter+=1
         if (self.frame_counter%self.n_frames == self.n_frames-1):
             self.previus_frame = self._preprocess(frame)
         
 
         if (self.frame_counter%self.n_frames == 0):
+
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             delta = cv2.absdiff(gray, self.previus_frame)
-            delta = cv2.threshold(delta, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-            h,w = delta.shape
-            print(w,h)
+            delta = cv2.threshold(delta, 40, 255, cv2.THRESH_BINARY)[1]
+            #h,w = delta.shape
+            #print(w,h)
 
             #h / 20 = 27
             #w / 40 = 24
@@ -57,32 +60,35 @@ class MotionDetectorV2:
                     cropped_image = delta[start_y:start_y+cell_h, start_x:start_x+cell_w]
                     pixels = cv2.countNonZero(cropped_image)
                     #print(pixels)
-                    if pixels>10:
+                    if pixels>20:
                         #print('hey')
                         delta[start_y:start_y+cell_h, start_x:start_x+cell_w] = np.full((cell_h,cell_w),255,np.uint8)
                     else:
                         delta[start_y:start_y+cell_h, start_x:start_x+cell_w] = np.full((cell_h,cell_w),0,np.uint8)
+            cv2.imshow('delta1', delta)
+        #t1 = time.perf_counter()
+        #print(t1-t0, 'frame diff')
 
-            #delta = cv2.threshold(delta, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
-            #delta = cv2.threshold(delta, 0, 255, cv2.THRESH_BINARY)[1]
-            #delta = cv2.threshold(delta, 0, 255, cv2.THRESH_OTSU)[1]
-            #delta_thresh = cv2.erode(delta, self.kernel_erode, iterations=1)
-            # y:y x:x
-            #cropped_image = delta[0:300, 0:300]
-            '''
-            pixels = cv2.countNonZero(cropped_image)
-            print(pixels)
-            #if pixels>10:
-            #    print('asd')
-            # np.full((2, 2), np.inf)
-            delta[0:300, 0:300] = np.full((300,300),255,np.uint8)
-                # np.zeros((100, 100))
-            pixels = cv2.countNonZero(cropped_image)
-            print(pixels)
-            
-            cv2.imshow('delta_tresh', delta_thresh)
-            '''
-            cv2.imshow('delta', delta)
+        #delta = cv2.threshold(delta, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+        #delta = cv2.threshold(delta, 0, 255, cv2.THRESH_BINARY)[1]
+        #delta = cv2.threshold(delta, 0, 255, cv2.THRESH_OTSU)[1]
+        #delta_thresh = cv2.erode(delta, self.kernel_erode, iterations=1)
+        # y:y x:x
+        #cropped_image = delta[0:300, 0:300]
+        '''
+        pixels = cv2.countNonZero(cropped_image)
+        print(pixels)
+        #if pixels>10:
+        #    print('asd')
+        # np.full((2, 2), np.inf)
+        delta[0:300, 0:300] = np.full((300,300),255,np.uint8)
+            # np.zeros((100, 100))
+        pixels = cv2.countNonZero(cropped_image)
+        print(pixels)
+        
+        cv2.imshow('delta_tresh', delta_thresh)
+        '''
+        
 
         return False
         # 5 frames earlier as a background is fine, maybe it should be a parameter

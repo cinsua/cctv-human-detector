@@ -4,6 +4,9 @@ openvino_env\Scripts\activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 
+git reset --hard HEAD~1
+git reset --hard HEAD
+
 '''
 
 
@@ -12,6 +15,7 @@ import cv2
 from itertools import product
 from src.mot_det import MotionDetector
 from src.mot_det_v2 import MotionDetectorV2
+from src.mot_det_test import MotionDetectorTest
 from src.fps import Fps
 from src import utils
 from src.ia_det import IaDetector
@@ -31,7 +35,7 @@ N_FRAMES_UPDATE_FPS = 30
 POSITIVE_DETECTIONS_REQUIRED = 3
 
 #CAMERA_DIR = 0 # use RTSP link, or 0 for webcam
-CAMERA_DIR = 'videos/ex7.mp4'
+CAMERA_DIR = 'vid/ex2.mp4'
 
 COVERAGE_TRESHOLD = 0.5
 IOU_MAX = 0.4
@@ -92,6 +96,7 @@ video_capture = VideoCapture(640,360,fps)
 # Init motion detector
 #mot_det = MotionDetector(first_frame,N_FRAMES_MOV_DET, TRESHOLD_MOV_DET)
 mot_det = MotionDetectorV2(first_frame,N_FRAMES_MOV_DET, TRESHOLD_MOV_DET)
+mot_test = MotionDetectorTest(first_frame)
 
 # Init fps counter
 fps_counter = Fps(N_FRAMES_UPDATE_FPS)
@@ -113,6 +118,7 @@ while True:
     fps_counter.start_fps()
     #motion detection
     movement_detected = mot_det.process_frame(frame)
+    mot_test.process_frame(frame)
     
     ia_detected = False
     
